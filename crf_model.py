@@ -1,5 +1,6 @@
 # crf_model.py
 import sklearn_crfsuite
+from TorchCRF import CRF
 
 class CRFNER:
     def __init__(self):
