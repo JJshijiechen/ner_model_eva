@@ -1,4 +1,4 @@
-# ner_model_eva
+# Repository Structure
 ```
 NER-Robustness-Project/
 ├── data/
