@@ -32,7 +32,7 @@ Instructions for running experiments will be added as the project progresses.
 
 ## Team Members
 
+- Alex Zhang
 - Jason Chen
 - Jennifer Huang
 - Laura Liu
-- Alex Zhang
