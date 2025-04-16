@@ -1,4 +1,8 @@
-# Repository Structure
+# NER Model Evaluation Project
+
+This project evaluates the robustness of Named Entity Recognition (NER) models across clean and noisy text domains.
+
+## Repository Structure
 ```
 NER-Robustness-Project/
 ├── data/
@@ -14,3 +18,21 @@ NER-Robustness-Project/
 ├── requirements.txt
 └── README.md
 ```
+
+## Installation
+
+Install the required dependencies:
+```bash
+pip install hmmlearn sklearn-crfsuite transformers torch torchcrf
+```
+
+## Usage
+
+Instructions for running experiments will be added as the project progresses.
+
+## Team Members
+
+- Jason Chen
+- Jennifer Huang
+- Laura Liu
+- Alex Zhang
