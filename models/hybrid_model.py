@@ -22,20 +22,41 @@ class BERT_CRF(nn.Module):
         outputs = self.bert(input_ids=input_ids, attention_mask=attention_mask)
         emissions = self.hidden2tag(outputs.last_hidden_state)
         if labels is not None:
-            # The mask should be of type torch.uint8 in older versions or torch.bool in newer ones.
             loss = -self.crf(emissions, labels, mask=attention_mask.bool(), reduction='mean')
             return loss
         else:
             prediction = self.crf.decode(emissions, mask=attention_mask.bool())
             return prediction
 
+def read_first_sentence(filename):
+    """
+    Reads the first non-empty sentence (tokens only) from a CoNLL file.
+    """
+    tokens = []
+    with open(filename, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                if tokens:
+                    return " ".join(tokens)
+            else:
+                parts = line.split()
+                tokens.append(parts[0])
+    return " ".join(tokens)
+
 if __name__ == "__main__":
-    # Example usage with dummy data:
-    tokenizer = BertTokenizer.from_pretrained("bert-base-cased")
-    sample_text = "John Doe works at Acme Corp in New York City."
-    inputs = tokenizer(sample_text, return_tensors="pt")
+    test_file = "eng.testa"
+    sample_sentence = read_first_sentence(test_file)
+    print("Sample sentence for Hybrid Model:", sample_sentence)
     
-    # For testing, labels are not used. For training, you would provide labels.
+    # Initialize tokenizer and model.
+    tokenizer = BertTokenizer.from_pretrained("bert-base-cased")
     model = BERT_CRF(bert_model_name="bert-base-cased", num_labels=5)
+    
+    # Tokenize the sample sentence.
+    inputs = tokenizer(sample_sentence, return_tensors="pt")
+    # Inference (no labels provided).
     predictions = model(inputs['input_ids'], inputs['attention_mask'])
-    print("Hybrid BERT+CRF predictions:", predictions)
+    
+    print("Hybrid BERT+CRF predictions (token-level indices):")
+    print(predictions)
