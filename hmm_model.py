@@ -60,7 +60,7 @@ def build_vocab(sentences):
         for w in tokens:
             if w not in vocab:
                 vocab[w] = len(vocab)
-    return vocab
+    return vocab 
 
 def prepare_hmm_data(sentences, vocab):
     """
@@ -142,4 +142,4 @@ if __name__ == "__main__":
         from sklearn.metrics import classification_report
         print(classification_report(gold_flat, pred_flat))
     except Exception as e:
-        print("Error in evaluation:", e)
+        print("Error in evaluation:", e) 

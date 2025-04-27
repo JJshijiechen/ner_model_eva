@@ -1,69 +1,67 @@
-# main.py
-from hmm_model import HMMNER
-from crf_model import CRFNER
+#!/usr/bin/env python3
+import argparse
+from tqdm import tqdm
+
+from data_preprocessing import read_conll_file
 from bert_ner import BERTNER
-from gpt_ner import GPTNER
-from hybrid_model import BERT_CRF
-from transformers import BertTokenizer
-import numpy as np
-import torch
 
-def run_hmm():
-    print("Running HMM Model:")
-    # Dummy data for demonstration
-    X_train = np.random.randint(0, 100, size=(10, 1))
-    lengths = [6, 4]
-    model = HMMNER(n_states=5, n_features=100)
-    model.train(X_train, lengths)
-    pred = model.predict(X_train)
-    print("HMM predictions:", pred)
+def save_predictions(predictions, sentences, output_file):
+    import os 
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
+    with open(output_file, "w", encoding="utf-8") as f:
+        # sentences: List of sentences, each sentence = List[(token, gold_tag)]
+        for sentence, tags in zip(sentences, predictions):
+            for (token, _), pred_tag in zip(sentence, tags):
+                f.write(f"{token} {pred_tag}\n")
+            f.write("\n")
+    print(f"Saved BERT predictions to {output_file}")
 
-def run_crf():
-    print("\nRunning CRF Model:")
-    X_train = [
-        [{"word.lower()": "john", "is_title": True}, {"word.lower()": "doe", "is_title": True}],
-        [{"word.lower()": "acme", "is_title": True}, {"word.lower()": "corp", "is_title": True}]
-    ]
-    y_train = [
-        ["B-PER", "I-PER"],
-        ["B-ORG", "I-ORG"]
-    ]
-    model = CRFNER()
-    model.train(X_train, y_train)
-    pred = model.predict(X_train)
-    print("CRF predictions:", pred)
+def run_bert(input_file: str, output_file: str):
+    # 1) read CoNLL data
+    test_sentences = read_conll_file(input_file)  # list of [(tok, tag), …]
 
-def run_bert():
-    print("\nRunning BERT-based NER:")
+    # 2) init model
     model = BERTNER()
-    sample_text = "John Doe is working at Acme Corp in New York City."
-    result = model.predict(sample_text)
-    print("BERT NER output:")
-    for entity in result:
-        print(entity)
+    results = []
 
-def run_gpt():
-    print("\nRunning GPT-based NER (via prompt engineering):")
-    model = GPTNER()
-    prompt = ("Extract the named entities from the following sentence: "
-              "'John Doe works at Acme Corp in New York City.' Entities:")
-    result = model.predict(prompt)
-    print("GPT NER output:")
-    print(result)
+    # 3) predict and rebuild BIO tags
+    for sent in tqdm(test_sentences, desc="BERT predictions"): 
+        tokens = [tok for tok, _ in sent]
+        text   = " ".join(tokens)
+        ents   = model.predict(text)
 
-def run_hybrid():
-    print("\nRunning Hybrid BERT+CRF Model:")
-    tokenizer = BertTokenizer.from_pretrained("bert-base-cased")
-    sample_text = "John Doe works at Acme Corp in New York City."
-    inputs = tokenizer(sample_text, return_tensors="pt")
-    model = BERT_CRF(bert_model_name="bert-base-cased", num_labels=5)
-    # For demonstration, we are only doing decoding.
-    prediction = model(inputs['input_ids'], inputs['attention_mask'])
-    print("Hybrid model predictions:", prediction)
+        tags = ["O"] * len(tokens)
+        for span in ents:
+            label = span["entity_group"]
+            start, end = span["start"], span["end"]
+
+            # align char‐offset span back to token indices
+            char_idx = 0
+            covered = []
+            for i, tok in enumerate(tokens):
+                tok_str = tok + " "
+                tok_start = char_idx
+                tok_end   = char_idx + len(tok_str)
+                if not (tok_end <= start or tok_start >= end):
+                    covered.append(i)
+                char_idx += len(tok_str)
+
+            if covered:
+                tags[covered[0]] = "B-" + label
+                for j in covered[1:]:
+                    tags[j] = "I-" + label
+
+        results.append(tags)
+
+    # 4) save
+    save_predictions(results, test_sentences, output_file) 
 
 if __name__ == "__main__":
-    run_hmm()
-    run_crf()
-    run_bert()
-    run_gpt()
-    run_hybrid()
+    parser = argparse.ArgumentParser(description="Run only BERT NER on a CoNLL file")
+    parser.add_argument("-i", "--input",  required=True,
+                        help="Path to CoNLL-formatted file (e.g. eng.testa)")
+    parser.add_argument("-o", "--output", default="results/bert_predictions.txt",
+                        help="Where to write token+tag predictions")
+    args = parser.parse_args()
+
+    run_bert(args.input, args.output) 
